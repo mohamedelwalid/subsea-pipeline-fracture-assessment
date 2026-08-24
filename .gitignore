@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.py[cod]
+.DS_Store
+
+# Abaqus generated and potentially large files
+*.odb
+*.lck
+*.log
+*.msg
+*.prt
+*.sim
+*.sta
+*.com
+*.dat
+*.ipm
+abaqus.rpy*
