@@ -31,6 +31,23 @@ The Python workflow calculates:
 - pressure boundaries for selected utilisation levels; and
 - a pressure-versus-crack-depth screening envelope exported to PNG and CSV.
 
+## How to read the figure
+
+The horizontal axis is the assumed crack depth and the vertical axis is the
+internal pressure. Each point in the plot is one analytical calculation. The
+colour shows the calculated ratio between stress intensity and fracture
+toughness, `K_I / K_IC`:
+
+- green: below 0.60;
+- amber: between 0.60 and 0.80; and
+- red: 0.80 or higher.
+
+The white star marks the default case at a 20 mm crack depth and 10 MPa
+internal pressure. The labelled curves show where the ratio reaches 0.60,
+0.80 and 1.00. Moving upwards or to the right increases the calculated stress
+intensity because the pressure or assumed crack depth is increased. The plot
+is a sensitivity map, not an approved safe-operating envelope.
+
 ## Default educational case
 
 | Parameter | Value |
@@ -98,6 +115,20 @@ The analysis writes:
 - `results/operating_envelope.csv`; and
 - a console summary of the default case and pressure boundaries.
 
+## How the code is organised
+
+The source code intentionally uses ordinary functions and dictionaries rather
+than custom classes:
+
+- `fracture.py` stores the inputs and performs one analytical calculation;
+- `envelope.py` repeats that calculation for many pressure and crack-depth
+  combinations and writes the CSV file;
+- `plotting.py` turns the calculated matrix into the coloured figure; and
+- `run_analysis.py` connects the steps and prints the default result.
+
+This structure keeps the engineering equations separate from file export and
+plot formatting while remaining straightforward to follow and modify.
+
 ## Repository structure
 
 ```text
@@ -141,4 +172,3 @@ a safe operating envelope or a fitness-for-service assessment. It does not
 implement BS 7910, API 579-1/ASME FFS-1 or a DNV assessment procedure. Residual
 stress, fatigue crack growth, corrosion, weld mismatch, plastic collapse,
 combined loading and material uncertainty are outside the current scope.
-

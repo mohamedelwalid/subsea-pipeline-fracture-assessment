@@ -1,60 +1,54 @@
-"""Parameter sweep and CSV export for the operating envelope."""
+"""Calculate a pressure-versus-crack-depth screening map."""
 
 import csv
-from dataclasses import dataclass, replace
-from pathlib import Path
+import os
 
 import numpy as np
 
-from .fracture import AssessmentInput, assess_case
+from .fracture import calculate_case
 
 
-@dataclass(frozen=True)
-class Envelope:
-    crack_depths_mm: np.ndarray
-    internal_pressures_mpa: np.ndarray
-    utilisation: np.ndarray
-
-
-def build_envelope(
-    base_case: AssessmentInput,
-    crack_depths_mm: np.ndarray | None = None,
-    internal_pressures_mpa: np.ndarray | None = None,
-) -> Envelope:
+def build_envelope(base_inputs, crack_depths_mm=None, pressures_mpa=None):
+    """Run the same calculation for many crack depths and pressures."""
     if crack_depths_mm is None:
-        crack_depths_mm = np.linspace(1.0, 45.0, 177)
-    if internal_pressures_mpa is None:
-        internal_pressures_mpa = np.linspace(2.0, 25.0, 185)
+        crack_depths_mm = np.linspace(1, 45, 177)
 
-    utilisation = np.empty((len(internal_pressures_mpa), len(crack_depths_mm)))
-    for pressure_index, pressure_mpa in enumerate(internal_pressures_mpa):
-        for crack_index, crack_mm in enumerate(crack_depths_mm):
-            case = replace(
-                base_case,
-                internal_pressure_pa=float(pressure_mpa) * 1e6,
-                crack_depth_m=float(crack_mm) / 1000.0,
-            )
-            utilisation[pressure_index, crack_index] = assess_case(case).toughness_utilisation
+    if pressures_mpa is None:
+        pressures_mpa = np.linspace(2, 25, 185)
 
-    return Envelope(
-        crack_depths_mm=np.asarray(crack_depths_mm),
-        internal_pressures_mpa=np.asarray(internal_pressures_mpa),
-        utilisation=utilisation,
-    )
+    utilisation = np.zeros((len(pressures_mpa), len(crack_depths_mm)))
+
+    for pressure_index in range(len(pressures_mpa)):
+        for crack_index in range(len(crack_depths_mm)):
+            # Copy the dictionary so the original input values are not changed.
+            current_inputs = base_inputs.copy()
+            current_inputs["internal_pressure_pa"] = pressures_mpa[pressure_index] * 1e6
+            current_inputs["crack_depth_m"] = crack_depths_mm[crack_index] / 1000
+
+            result = calculate_case(current_inputs)
+            utilisation[pressure_index, crack_index] = result[
+                "toughness_utilisation"
+            ]
+
+    return crack_depths_mm, pressures_mpa, utilisation
 
 
-def write_envelope_csv(envelope: Envelope, output_path: Path) -> None:
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with output_path.open("w", newline="", encoding="utf-8") as file:
-        writer = csv.writer(file)
+def write_envelope_csv(crack_depths_mm, pressures_mpa, utilisation, output_file):
+    """Save every calculated combination to a CSV file."""
+    output_folder = os.path.dirname(output_file)
+    if output_folder:
+        os.makedirs(output_folder, exist_ok=True)
+
+    with open(output_file, "w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file, lineterminator="\n")
         writer.writerow(["crack_depth_mm", "internal_pressure_mpa", "ki_over_kic"])
-        for pressure_index, pressure_mpa in enumerate(envelope.internal_pressures_mpa):
-            for crack_index, crack_mm in enumerate(envelope.crack_depths_mm):
+
+        for pressure_index in range(len(pressures_mpa)):
+            for crack_index in range(len(crack_depths_mm)):
                 writer.writerow(
                     [
-                        f"{crack_mm:.3f}",
-                        f"{pressure_mpa:.3f}",
-                        f"{envelope.utilisation[pressure_index, crack_index]:.6f}",
+                        round(crack_depths_mm[crack_index], 3),
+                        round(pressures_mpa[pressure_index], 3),
+                        round(utilisation[pressure_index, crack_index], 6),
                     ]
                 )
-
